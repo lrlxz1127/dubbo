@@ -233,7 +233,7 @@
                 </argline>
             </properties>
         </profile>
-        <profile>
+        <!-- <profile>
             <id>checkstyle</id>
             <activation>
                 <jdk>[1.8,)</jdk>
@@ -272,7 +272,7 @@
                     </plugin>
                 </plugins>
             </build>
-        </profile>
+        </profile> -->
         <profile>
             <id>release</id>
             <build>
