@@ -169,6 +169,11 @@ public class RegistryProtocol implements Protocol {
 		return new DestroyableExporter<T>(exporter, originInvoker, overrideSubscribeUrl, registeredProviderUrl);
 	}
 
+	/**
+	 * 
+	 * @param originInvoker 原始invoker
+	 * @return
+	 */
 	@SuppressWarnings("unchecked")
 	private <T> ExporterChangeableWrapper<T> doLocalExport(final Invoker<T> originInvoker) {
 		String key = getCacheKey(originInvoker);
@@ -281,8 +286,10 @@ public class RegistryProtocol implements Protocol {
 	@Override
 	@SuppressWarnings("unchecked")
 	public <T> Invoker<T> refer(Class<T> type, URL url) throws RpcException {
+		// 更改url协议，并移除注册协议参数
 		url = url.setProtocol(url.getParameter(Constants.REGISTRY_KEY, Constants.DEFAULT_REGISTRY))
 				.removeParameter(Constants.REGISTRY_KEY);
+		// 得到注册中心
 		Registry registry = registryFactory.getRegistry(url);
 		if (RegistryService.class.equals(type)) {
 			return proxyFactory.getInvoker((T) registry, type, url);
@@ -311,11 +318,15 @@ public class RegistryProtocol implements Protocol {
 		Map<String, String> parameters = new HashMap<String, String>(directory.getUrl().getParameters());
 		URL subscribeUrl = new URL(Constants.CONSUMER_PROTOCOL, parameters.remove(Constants.REGISTER_IP_KEY), 0,
 				type.getName(), parameters);
+
+		// 注册消费者
 		if (!Constants.ANY_VALUE.equals(url.getServiceInterface()) && url.getParameter(Constants.REGISTER_KEY, true)) {
 			URL registeredConsumerUrl = getRegisteredConsumerUrl(subscribeUrl, url);
 			registry.register(registeredConsumerUrl);
 			directory.setRegisteredConsumerUrl(registeredConsumerUrl);
 		}
+
+		// 订阅生产者，配置中心，路由中心
 		directory.subscribe(subscribeUrl.addParameter(Constants.CATEGORY_KEY, Constants.PROVIDERS_CATEGORY + ","
 				+ Constants.CONFIGURATORS_CATEGORY + "," + Constants.ROUTERS_CATEGORY));
 

@@ -109,7 +109,7 @@ final class HeaderExchangeChannel implements ExchangeChannel {
         // create request.
         Request req = new Request();
         req.setVersion(Version.getProtocolVersion());
-        req.setTwoWay(true);
+        req.setTwoWay(true);// 应答模式
         req.setData(request);
         DefaultFuture future = new DefaultFuture(channel, req, timeout);
         try {

@@ -530,6 +530,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
 						}
 
 						// JavassistProxyFactory
+						// 代理调用
 						Invoker<?> invoker = proxyFactory.getInvoker(ref, (Class) interfaceClass,
 								registryURL.addParameterAndEncoded(Constants.EXPORT_KEY, url.toFullString()));
 						DelegateProviderMetaDataInvoker wrapperInvoker = new DelegateProviderMetaDataInvoker(invoker,

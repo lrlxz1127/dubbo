@@ -54,6 +54,8 @@ import java.util.concurrent.ConcurrentMap;
 
 /**
  * dubbo protocol support.
+ * 
+ * ip+port为唯一一个实例
  */
 public class DubboProtocol extends AbstractProtocol {
 
@@ -70,14 +72,19 @@ public class DubboProtocol extends AbstractProtocol {
 	// consumer side export a stub service for dispatching event
 	// servicekey-stubmethods
 	private final ConcurrentMap<String, String> stubServiceMethodsMap = new ConcurrentHashMap<String, String>();
+
+	/**
+	 * 请求消息处理
+	 */
 	private ExchangeHandler requestHandler = new ExchangeHandlerAdapter() {
 
 		@Override
 		public Object reply(ExchangeChannel channel, Object message) throws RemotingException {
 			if (message instanceof Invocation) {
 				Invocation inv = (Invocation) message;
-				Invoker<?> invoker = getInvoker(channel, inv);
+				Invoker<?> invoker = getInvoker(channel, inv);// 从缓存中得到invoker实例
 				// need to consider backward-compatibility if it's a callback
+				// 如果是callback 需要处理高版本调用低版本的问题
 				if (Boolean.TRUE.toString().equals(inv.getAttachments().get(IS_CALLBACK_SERVICE_INVOKE))) {
 					String methodsStr = invoker.getUrl().getParameters().get("methods");
 					boolean hasMethod = false;
@@ -101,6 +108,7 @@ public class DubboProtocol extends AbstractProtocol {
 					}
 				}
 				RpcContext.getContext().setRemoteAddress(channel.getRemoteAddress());
+				// filter chain >
 				return invoker.invoke(inv);
 			}
 			throw new RemotingException(channel,
@@ -191,11 +199,12 @@ public class DubboProtocol extends AbstractProtocol {
 	}
 
 	Invoker<?> getInvoker(Channel channel, Invocation inv) throws RemotingException {
-		boolean isCallBackServiceInvoke = false;
+		boolean isCallBackServiceInvoke = false;//
 		boolean isStubServiceInvoke = false;
-		int port = channel.getLocalAddress().getPort();
-		String path = inv.getAttachments().get(Constants.PATH_KEY);
+		int port = channel.getLocalAddress().getPort();// 得到本地的dubbo端口
+		String path = inv.getAttachments().get(Constants.PATH_KEY);// 得到访问路径
 		// if it's callback service on client side
+		// 是否是本地服务
 		isStubServiceInvoke = Boolean.TRUE.toString().equals(inv.getAttachments().get(Constants.STUB_EVENT_KEY));
 		if (isStubServiceInvoke) {
 			port = channel.getRemoteAddress().getPort();
@@ -348,6 +357,7 @@ public class DubboProtocol extends AbstractProtocol {
 	}
 
 	private ExchangeClient[] getClients(URL url) {
+		// 是否共享连接
 		// whether to share connection
 		boolean service_share_connect = false;
 		int connections = url.getParameter(Constants.CONNECTIONS_KEY, 0);

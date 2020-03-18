@@ -26,61 +26,68 @@ import java.util.Random;
 
 /**
  * LeastActiveLoadBalance
+ * 
+ * 最少使用有用到权重
  *
  */
 public class LeastActiveLoadBalance extends AbstractLoadBalance {
 
-    public static final String NAME = "leastactive";
+	public static final String NAME = "leastactive";
 
-    private final Random random = new Random();
+	private final Random random = new Random();
 
-    @Override
-    protected <T> Invoker<T> doSelect(List<Invoker<T>> invokers, URL url, Invocation invocation) {
-        int length = invokers.size(); // Number of invokers
-        int leastActive = -1; // The least active value of all invokers
-        int leastCount = 0; // The number of invokers having the same least active value (leastActive)
-        int[] leastIndexs = new int[length]; // The index of invokers having the same least active value (leastActive)
-        int totalWeight = 0; // The sum of with warmup weights
-        int firstWeight = 0; // Initial value, used for comparision
-        boolean sameWeight = true; // Every invoker has the same weight value?
-        for (int i = 0; i < length; i++) {
-            Invoker<T> invoker = invokers.get(i);
-            int active = RpcStatus.getStatus(invoker.getUrl(), invocation.getMethodName()).getActive(); // Active number
-            int afterWarmup = getWeight(invoker, invocation); // Weight
-            if (leastActive == -1 || active < leastActive) { // Restart, when find a invoker having smaller least active value.
-                leastActive = active; // Record the current least active value
-                leastCount = 1; // Reset leastCount, count again based on current leastCount
-                leastIndexs[0] = i; // Reset
-                totalWeight = afterWarmup; // Reset
-                firstWeight = afterWarmup; // Record the weight the first invoker
-                sameWeight = true; // Reset, every invoker has the same weight value?
-            } else if (active == leastActive) { // If current invoker's active value equals with leaseActive, then accumulating.
-                leastIndexs[leastCount++] = i; // Record index number of this invoker
-                totalWeight += afterWarmup; // Add this invoker's weight to totalWeight.
-                // If every invoker has the same weight?
-                if (sameWeight && i > 0
-                        && afterWarmup != firstWeight) {
-                    sameWeight = false;
-                }
-            }
-        }
-        // assert(leastCount > 0)
-        if (leastCount == 1) {
-            // If we got exactly one invoker having the least active value, return this invoker directly.
-            return invokers.get(leastIndexs[0]);
-        }
-        if (!sameWeight && totalWeight > 0) {
-            // If (not every invoker has the same weight & at least one invoker's weight>0), select randomly based on totalWeight.
-            int offsetWeight = random.nextInt(totalWeight) + 1;
-            // Return a invoker based on the random value.
-            for (int i = 0; i < leastCount; i++) {
-                int leastIndex = leastIndexs[i];
-                offsetWeight -= getWeight(invokers.get(leastIndex), invocation);
-                if (offsetWeight <= 0)
-                    return invokers.get(leastIndex);
-            }
-        }
-        // If all invokers have the same weight value or totalWeight=0, return evenly.
-        return invokers.get(leastIndexs[random.nextInt(leastCount)]);
-    }
+	@Override
+	protected <T> Invoker<T> doSelect(List<Invoker<T>> invokers, URL url, Invocation invocation) {
+		int length = invokers.size(); // Number of invokers
+		int leastActive = -1; // The least active value of all invokers
+		int leastCount = 0; // The number of invokers having the same least active value (leastActive)
+		int[] leastIndexs = new int[length]; // The index of invokers having the same least active value (leastActive)
+		int totalWeight = 0; // The sum of with warmup weights
+		int firstWeight = 0; // Initial value, used for comparision
+		boolean sameWeight = true; // Every invoker has the same weight value?
+		for (int i = 0; i < length; i++) {
+			Invoker<T> invoker = invokers.get(i);
+			// 通过filter设置
+			int active = RpcStatus.getStatus(invoker.getUrl(), invocation.getMethodName()).getActive(); // Active number
+			int afterWarmup = getWeight(invoker, invocation); // Weight
+																// 得到jvm预热之后的权重值，因为jvm刚刚开始启动的时候性能不是最优的，要预热一段时间，这里dubbo默认设置的预热时间为10min
+			if (leastActive == -1 || active < leastActive) { // Restart, when find a invoker having smaller least active
+																// value.
+				leastActive = active; // Record the current least active value
+				leastCount = 1; // Reset leastCount, count again based on current leastCount
+				leastIndexs[0] = i; // Reset
+				totalWeight = afterWarmup; // Reset
+				firstWeight = afterWarmup; // Record the weight the first invoker
+				sameWeight = true; // Reset, every invoker has the same weight value?
+			} else if (active == leastActive) { // If current invoker's active value equals with leaseActive, then
+												// accumulating.
+				leastIndexs[leastCount++] = i; // Record index number of this invoker
+				totalWeight += afterWarmup; // Add this invoker's weight to totalWeight.
+				// If every invoker has the same weight?
+				if (sameWeight && i > 0 && afterWarmup != firstWeight) {
+					sameWeight = false;
+				}
+			}
+		}
+		// assert(leastCount > 0)
+		if (leastCount == 1) {
+			// If we got exactly one invoker having the least active value, return this
+			// invoker directly.
+			return invokers.get(leastIndexs[0]);
+		}
+		if (!sameWeight && totalWeight > 0) {
+			// If (not every invoker has the same weight & at least one invoker's weight>0),
+			// select randomly based on totalWeight.
+			int offsetWeight = random.nextInt(totalWeight) + 1;
+			// Return a invoker based on the random value.
+			for (int i = 0; i < leastCount; i++) {
+				int leastIndex = leastIndexs[i];
+				offsetWeight -= getWeight(invokers.get(leastIndex), invocation);
+				if (offsetWeight <= 0)
+					return invokers.get(leastIndex);
+			}
+		}
+		// If all invokers have the same weight value or totalWeight=0, return evenly.
+		return invokers.get(leastIndexs[random.nextInt(leastCount)]);
+	}
 }

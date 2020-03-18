@@ -95,7 +95,7 @@ public class NettyClientHandler extends ChannelDuplexHandler {
                 response.setErrorMessage(StringUtils.toString(promise.cause()));
                 handler.received(channel, response);
             } else {
-            handler.sent(channel, msg);
+            	handler.sent(channel, msg);
             }
         } finally {
             NettyChannel.removeChannelIfDisconnected(ctx.channel());
